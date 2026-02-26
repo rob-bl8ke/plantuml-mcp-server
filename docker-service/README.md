@@ -32,6 +32,14 @@ From this folder ([docker-service](docker-service)):
 docker compose up -d
 ```
 
+First run (or after changes), you may want:
+
+```sh
+docker compose up -d --build
+```
+
+Note: older Docker installs use `docker-compose` instead of `docker compose`.
+
 ### Check status
 
 ```sh
@@ -172,6 +180,124 @@ SVG_URL=$(curl -sS -X POST "http://localhost:9091/encode" \
 	| python3 -c 'import sys, json; print(json.load(sys.stdin)["urls"]["svg"])')
 
 xdg-open "$SVG_URL"
+```
+
+## Additional API examples (native CLI)
+
+These examples are useful when you want more control over how you send content (heredoc, file input, etc.).
+
+### GET / (service info)
+
+```sh
+curl -sS http://localhost:9091/
+```
+
+### POST /encode (more ways to send PlantUML)
+
+#### macOS/Linux: heredoc (best for multi-line)
+
+```sh
+curl -sS -X POST http://localhost:9091/encode \
+	-H "Content-Type: text/plain" \
+	--data-binary @- << 'EOF'
+@startuml
+Alice -> Bob: Hello
+Bob -> Alice: Response
+@enduml
+EOF
+```
+
+#### macOS/Linux: from a file
+
+```sh
+cat my-diagram.puml | curl -sS -X POST http://localhost:9091/encode \
+	-H "Content-Type: text/plain" \
+	--data-binary @-
+```
+
+#### macOS/Linux: one-liner with escaped newlines
+
+```sh
+curl -sS -X POST http://localhost:9091/encode \
+	-H "Content-Type: text/plain" \
+	--data-binary $'@startuml\nAlice -> Bob: Hello\n@enduml'
+```
+
+#### Windows (PowerShell): from a file
+
+```powershell
+Get-Content -Raw .\my-diagram.puml |
+	curl.exe -s -X POST http://localhost:9091/encode `
+		-H "Content-Type: text/plain" `
+		--data-binary '@-'
+```
+
+### Extract just the encoded string
+
+If you have `jq` installed:
+
+```sh
+curl -sS -X POST http://localhost:9091/encode \
+	-H "Content-Type: text/plain" \
+	--data-binary $'@startuml\nAlice -> Bob: Hello\n@enduml' \
+| jq -r '.encoded'
+```
+
+Or with `python3` (no jq needed):
+
+```sh
+curl -sS -X POST http://localhost:9091/encode \
+	-H "Content-Type: text/plain" \
+	--data-binary $'@startuml\nAlice -> Bob: Hello\n@enduml' \
+| python3 -c 'import sys, json; print(json.load(sys.stdin)["encoded"])'
+```
+
+### POST /markdown
+
+Returns a ready-to-paste Markdown image link.
+
+#### macOS/Linux: JSON body
+
+```sh
+curl -sS -X POST http://localhost:9091/markdown \
+	-H "Content-Type: application/json" \
+	-d '{
+		"plantuml": "@startuml\\nAlice -> Bob: Hello\\n@enduml",
+		"title": "my-diagram",
+		"format": "svg"
+	}'
+```
+
+#### macOS/Linux: text/plain heredoc
+
+```sh
+curl -sS -X POST http://localhost:9091/markdown \
+	-H "Content-Type: text/plain" \
+	--data-binary @- << 'EOF'
+@startuml
+Alice -> Bob: Hello
+@enduml
+EOF
+```
+
+### POST /decode
+
+Useful for debugging an encoded string.
+
+#### Text/plain
+
+```sh
+curl -sS -X POST http://localhost:9091/decode \
+	-H "Content-Type: text/plain" \
+	--data-binary "SoWkIImgAStDuNBCoKnELT2rKt3AJx9Iy4ZDoSddSaZDIodDpU7b0W00"
+```
+
+#### JSON
+
+```sh
+curl -sS -X POST http://localhost:9091/decode \
+	-H "Content-Type: application/json" \
+	-d '{"encoded":"SoWkIImgAStDuNBCoKnELT2rKt3AJx9Iy4ZDoSddSaZDIodDpU7b0W00"}'
 ```
 
 ## Troubleshooting
