@@ -8,7 +8,7 @@
 # Arguments:
 #   TITLE      - Title for the diagram (default: "login-sequence")
 #   SCENARIO   - Description of the sequence to generate (default: login example)
-#   BASE_URL   - PlantUML server URL (default: "http://localhost:8080")
+#   BASE_URL   - PlantUML server URL (default: "http://localhost:9090/plantuml")
 #
 # Examples:
 #   # Use defaults
@@ -32,26 +32,30 @@
 #   1. Creates a temporary prompt file with the scenario injected
 #   2. Calls Copilot CLI to generate PlantUML
 #   3. Sends PlantUML to Docker service /markdown endpoint
-#   4. Service encodes and returns complete markdown link
-#   5. Output is processed to replace title and server URL
+#   4. Service returns the encoded string
+#   5. Constructs markdown link locally using jq
 #
 
 set -e
 
+# Get the directory where this script is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 SCENARIO="${2:-A user logs in. The UI calls the Auth API. Credentials are validated. A JWT is issued and returned to the UI.}"
 TITLE="${1:-login-sequence}"
-BASE_URL="${3:-http://localhost:8080}"
+BASE_URL="${3:-http://localhost:9090/plantuml}"
 
-# Create temporary prompt with scenario
-TEMP_PROMPT=$(mktemp)
-cat prompts/plantuml-sequence.txt | sed "s|{{SCENARIO}}|${SCENARIO}|g" > "$TEMP_PROMPT"
+# Create temporary prompt with scenario (keep it under the repo so Copilot can read it)
+TEMP_PROMPT=$(mktemp "${SCRIPT_DIR}/.copilot-prompt.XXXXXX.txt")
+cat "${SCRIPT_DIR}/prompts/plantuml-sequence.txt" | sed "s|{{SCENARIO}}|${SCENARIO}|g" > "$TEMP_PROMPT"
 
 # Use Docker service /markdown endpoint
 copilot -p "$TEMP_PROMPT" \
+| sed -n '/^@startuml/,/^@enduml/p' \
 | curl -s -X POST http://localhost:9091/markdown \
   -H "Content-Type: text/plain" \
   --data-binary @- \
-| jq -r --arg title "$TITLE" --arg url "$BASE_URL" '.markdown | gsub("http://plantuml-server:8080"; $url) | gsub("diagram"; $title)'
+| jq -r --arg title "$TITLE" --arg url "$BASE_URL" '"![\($title)](\($url)/svg/\(.encoded) \"\($title)\")"'
 
 # Cleanup
 rm -f "$TEMP_PROMPT"

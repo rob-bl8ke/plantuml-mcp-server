@@ -75,6 +75,16 @@ Alice -> Bob: Hello
 
 ## Windows (PowerShell)
 
+### Generate diagrams (Copilot CLI + encoder)
+
+From the repo root:
+
+```powershell
+docker compose -f .\docker-service\docker-compose.yml up -d --build
+\# Then generate a diagram markdown link:
+.\test-scripts\generate.ps1
+```
+
 ### 1) Encode and print the SVG URL
 
 ```powershell

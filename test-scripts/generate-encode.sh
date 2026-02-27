@@ -8,7 +8,7 @@
 # Arguments:
 #   TITLE      - Title for the diagram (default: "login-sequence")
 #   SCENARIO   - Description of the sequence to generate (default: login example)
-#   BASE_URL   - PlantUML server URL (default: "http://localhost:8080")
+#   BASE_URL   - PlantUML server URL (default: "http://localhost:9090/plantuml")
 #
 # Examples:
 #   # Use defaults
@@ -38,16 +38,20 @@
 
 set -e
 
+# Get the directory where this script is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 SCENARIO="${2:-A user logs in. The UI calls the Auth API. Credentials are validated. A JWT is issued and returned to the UI.}"
 TITLE="${1:-login-sequence}"
-BASE_URL="${3:-http://localhost:8080}"
+BASE_URL="${3:-http://localhost:9090/plantuml}"
 
-# Create temporary prompt with scenario
-TEMP_PROMPT=$(mktemp)
-cat prompts/plantuml-sequence.txt | sed "s|{{SCENARIO}}|${SCENARIO}|g" > "$TEMP_PROMPT"
+# Create temporary prompt with scenario (keep it under the repo so Copilot can read it)
+TEMP_PROMPT=$(mktemp "${SCRIPT_DIR}/.copilot-prompt.XXXXXX.txt")
+cat "${SCRIPT_DIR}/prompts/plantuml-sequence.txt" | sed "s|{{SCENARIO}}|${SCENARIO}|g" > "$TEMP_PROMPT"
 
 # Use Docker service /encode endpoint and construct markdown locally
 copilot -p "$TEMP_PROMPT" \
+| sed -n '/^@startuml/,/^@enduml/p' \
 | curl -s -X POST http://localhost:9091/encode \
   -H "Content-Type: text/plain" \
   --data-binary @- \

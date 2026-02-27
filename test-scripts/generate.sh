@@ -7,13 +7,18 @@
 #   - generate-markdown.sh: Uses Docker /markdown endpoint (returns complete markdown)
 #   - generate-encode.sh:   Uses Docker /encode endpoint (constructs markdown locally)
 #
+# PowerShell equivalents (Windows):
+#   - generate.ps1
+#   - generate-markdown.ps1
+#   - generate-encode.ps1
+#
 # Usage:
 #   ./generate.sh [TITLE] [SCENARIO] [BASE_URL]
 #
 # Arguments:
 #   TITLE      - Title for the diagram (default: "login-sequence")
 #   SCENARIO   - Description of the sequence to generate (default: login example)
-#   BASE_URL   - PlantUML server URL (default: "http://localhost:8080")
+#   BASE_URL   - PlantUML server URL (default: "http://localhost:9090/plantuml")
 #
 # Examples:
 #   # Use defaults
