@@ -52,11 +52,13 @@ try {
   $prompt = $template.Replace('{{SCENARIO}}', $Scenario)
   Set-Content -LiteralPath $tempPrompt -Value $prompt -Encoding UTF8
 
+  # Use Copilot CLI to generate PlantUML from the scenario prompt
   $rawCopilot = (& copilot -p $tempPrompt) -join "`n"
   if ([string]::IsNullOrWhiteSpace($rawCopilot)) {
     throw 'Copilot returned empty output; cannot encode.'
   }
 
+  # Extract the @startuml ... @enduml block from Copilot output
   $m = [regex]::Match($rawCopilot, '(?s)@startuml\s.*?@enduml')
   if (-not $m.Success) {
     throw "Could not find @startuml..@enduml block in Copilot output."
@@ -64,12 +66,15 @@ try {
 
   $plantuml = $m.Value.Trim()
 
+  # Send PlantUML text to encoder service /markdown endpoint to get encoded string and markdown
   $resp = Invoke-RestMethod -Uri "$encoderBaseUrl/markdown" -Method Post -ContentType 'text/plain' -Body $plantuml
   if (-not $resp.encoded) {
     throw 'Encoder response missing encoded value.'
   }
 
   $encoded = [string]$resp.encoded
+
+  # Generate the Markdown image link for the rendered SVG diagram
   $markdown = '![{0}]({1}/svg/{2} "{0}")' -f $Title, $BaseUrl.TrimEnd('/'), $encoded
 
   Write-Output $markdown

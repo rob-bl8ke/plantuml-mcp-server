@@ -57,6 +57,8 @@ From the repo root:
 
 ```powershell
 docker compose -f .\docker-service\docker-compose.yml up -d --build
+# or
+docker compose -f .\docker-service\docker-compose.yml up -d --force-recreate encoder
 ```
 
 Quick checks:
