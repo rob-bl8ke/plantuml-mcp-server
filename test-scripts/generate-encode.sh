@@ -47,7 +47,8 @@ BASE_URL="${3:-http://localhost:9090/plantuml}"
 
 # Create temporary prompt with scenario (keep it under the repo so Copilot can read it)
 TEMP_PROMPT=$(mktemp "${SCRIPT_DIR}/.copilot-prompt.XXXXXX.txt")
-cat "${SCRIPT_DIR}/prompts/plantuml-sequence.txt" | sed "s|{{SCENARIO}}|${SCENARIO}|g" > "$TEMP_PROMPT"
+# Use perl instead of sed to safely handle SCENARIO values that contain '/' (e.g. URL paths)
+perl -pe "s/\{\{SCENARIO\}\}/${SCENARIO//\//\\/}/g" "${SCRIPT_DIR}/prompts/plantuml-sequence.txt" > "$TEMP_PROMPT"
 
 # Use Docker service /encode endpoint and construct markdown locally
 copilot -p "$TEMP_PROMPT" \

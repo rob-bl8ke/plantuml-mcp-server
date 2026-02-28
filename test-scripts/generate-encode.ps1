@@ -53,18 +53,40 @@ try {
   Set-Content -LiteralPath $tempPrompt -Value $prompt -Encoding UTF8
 
   # Use Copilot CLI to generate PlantUML from the scenario prompt
-  $rawCopilot = (& copilot -p $tempPrompt) -join "`n"
+  # Redirect stderr to $null so CLI auth/permission messages don't contaminate stdout
+  $rawCopilot = (& copilot -p $tempPrompt 2>$null) -join "`n"
   if ([string]::IsNullOrWhiteSpace($rawCopilot)) {
     throw 'Copilot returned empty output; cannot encode.'
   }
 
   # Extract the @startuml ... @enduml block from Copilot output
-  $m = [regex]::Match($rawCopilot, '(?s)@startuml\s.*?@enduml')
+  # Note: \s is intentionally removed — @startuml may be followed directly by a newline
+  $m = [regex]::Match($rawCopilot, '(?s)@startuml.*?@enduml')
   if (-not $m.Success) {
-    throw "Could not find @startuml..@enduml block in Copilot output."
+    $preview = $rawCopilot.Substring(0, [Math]::Min(500, $rawCopilot.Length)).Trim()
+    throw "Could not find @startuml..@enduml block in Copilot output.`nCopilot returned:`n$preview"
   }
 
-  $plantuml = $m.Value.Trim()
+  # Strip any Copilot CLI noise lines that may have been written to stdout mid-stream.
+  # A targeted blacklist is used rather than a whitelist so that legitimate PlantUML
+  # lines (e.g. skinparam, hide, arbitrary labels) are never accidentally dropped.
+  $noisePatterns = @(
+    'Permission denied',
+    'could not request permission',
+    'Total usage est',
+    'API time spent',
+    'Total session time',
+    'Total code changes',
+    'Breakdown by AI model',
+    'Premium request',
+    'cached'
+  )
+  $cleanLines = $m.Value -split "`n" | Where-Object {
+    $line = $_.Trim()
+    $isNoise = $noisePatterns | Where-Object { $line -match [regex]::Escape($_) }
+    -not $isNoise
+  }
+  $plantuml = ($cleanLines -join "`n").Trim()
 
   # Send PlantUML text to encoder service to get encoded string
   $resp = Invoke-RestMethod -Uri "$encoderBaseUrl/encode" -Method Post -ContentType 'text/plain' -Body $plantuml

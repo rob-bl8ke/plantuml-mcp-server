@@ -16,7 +16,8 @@ This document explains the structure and functionality of the `encode-service.js
 
 - **Express App**: `const app = express();`
 - **Port**: Uses `process.env.PORT` or defaults to `3000`.
-- **PlantUML Server URL**: Uses `process.env.PLANTUML_SERVER` or defaults to `http://plantuml-server:8080/plantuml`.
+- **PlantUML Internal URL**: Uses `process.env.PLANTUML_INTERNAL` or defaults to `http://plantuml-server:8080/plantuml`. Used for container-to-container communication (not exposed to callers).
+- **PlantUML Public URL**: Uses `process.env.PLANTUML_PUBLIC` or defaults to `http://localhost:9090/plantuml`. Embedded in all URLs returned to callers — must be resolvable from the client machine.
 
 ---
 
@@ -34,11 +35,19 @@ This document explains the structure and functionality of the `encode-service.js
 
 - **Route:** `GET /health`
 - **Purpose:** Verifies service is running.
-- **Response:** `{ status: 'ok', service: 'plantuml-encoder' }`
+- **Response:** `{ status, service, version, plantumlInternal, plantumlPublic }`
 
 ---
 
-### 2. Encode
+### 2. Diagram Types
+
+- **Route:** `GET /diagram-types`
+- **Purpose:** Returns the list of supported diagram types and output formats. Useful for MCP tool discoverability.
+- **Response:** `{ types: [...], formats: ['svg', 'png', 'txt'] }`
+
+---
+
+### 3. Encode
 
 - **Route:** `POST /encode`
 - **Purpose:** Encodes PlantUML diagram text and returns the encoded string plus URLs for SVG, PNG, and TXT formats.
@@ -48,27 +57,28 @@ This document explains the structure and functionality of the `encode-service.js
   - `urls`: Direct links to SVG, PNG, and TXT renderings via the PlantUML server.
 - **Error Handling:**
   - 400 if no PlantUML content is provided.
-  - 500 if encoding fails (error message comes from Node.js, not PlantUML).
-- **Note:** Malformed PlantUML syntax is not detected here; errors only occur if the encoder fails (rare).
+  - 400 if content does not start with `@startuml` or end with `@enduml` (validated by `validatePlantuml()`).
+  - 500 if encoding fails.
 
 ---
 
-### 3. Markdown
+### 4. Markdown
 
 - **Route:** `POST /markdown`
 - **Purpose:** Generates a Markdown image link for a PlantUML diagram.
-- **Request Body:** JSON with `plantuml`, optional `title`, and optional `format` (`svg` by default).
+- **Request Body:** Plain text or JSON with `plantuml`, optional `title`, and optional `format` (`svg` by default).
 - **Response:**
   - `markdown`: Markdown image link.
   - `url`: Direct link to the diagram.
   - `encoded`: The encoded string.
 - **Error Handling:**
   - 400 if no PlantUML content is provided.
+  - 400 if content does not start with `@startuml` or end with `@enduml`.
   - 500 if encoding fails.
 
 ---
 
-### 4. Decode
+### 5. Decode
 
 - **Route:** `POST /decode`
 - **Purpose:** Decodes an encoded PlantUML string back to its original diagram text.
@@ -81,7 +91,7 @@ This document explains the structure and functionality of the `encode-service.js
 
 ---
 
-### 5. Root (Usage Info)
+### 6. Root (Usage Info)
 
 - **Route:** `GET /`
 - **Purpose:** Provides a summary of the service, endpoints, and example requests.
@@ -98,14 +108,16 @@ This document explains the structure and functionality of the `encode-service.js
 ## Server Startup
 
 - The server listens on all interfaces (`0.0.0.0`) at the specified port.
-- Startup messages are logged to the console, including the port and PlantUML server URL.
+- Startup messages are logged to the console, including the port, `PLANTUML_INTERNAL`, and `PLANTUML_PUBLIC` URLs.
 - These logs appear in Docker container logs and can be viewed with `docker logs <container_name>` or `docker-compose logs <service_name>`.
 
 ---
 
 ## Docker Compose Notes
 
-- Port forwarding and environment variables are typically set in `docker-compose.yml`.
+- Port forwarding and environment variables are set in `docker-compose.yml`.
+- `PLANTUML_INTERNAL` is used by Node.js inside the Docker network (container-to-container). Leave this as the service name `plantuml-server`.
+- `PLANTUML_PUBLIC` is embedded in URLs returned to callers. Set this to the externally accessible host/port (default: `http://localhost:9090/plantuml`).
 - You do not need to manually set environment variables when using Docker Compose unless you want to override defaults.
 
 ---
@@ -114,8 +126,9 @@ This document explains the structure and functionality of the `encode-service.js
 
 - Request body too large: `413 Payload Too Large` (handled by Express).
 - Missing or invalid body: `400 Bad Request` with usage info.
+- Content missing `@startuml`/`@enduml` boundaries: `400 Bad Request` with specific reason string.
 - Internal encoding/decoding errors: `500 Internal Server Error` with error message.
-- Malformed PlantUML syntax is not detected by the encoder; errors only occur at rendering time on the PlantUML server.
+- Malformed PlantUML syntax within a valid `@startuml`/`@enduml` block is not detected by the encoder; errors surface at rendering time on the PlantUML server.
 
 ---
 

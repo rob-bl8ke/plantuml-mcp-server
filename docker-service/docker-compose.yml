@@ -23,7 +23,8 @@ services:
       - "9091:3000"
     environment:
       - PORT=3000
-      - PLANTUML_SERVER=http://localhost:9090/plantuml
+      - PLANTUML_INTERNAL=http://plantuml-server:8080/plantuml
+      - PLANTUML_PUBLIC=http://localhost:9090/plantuml
     depends_on:
       - plantuml-server
     healthcheck:
