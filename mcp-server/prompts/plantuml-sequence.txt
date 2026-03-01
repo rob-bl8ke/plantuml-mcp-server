@@ -1,0 +1,22 @@
+You are generating PlantUML that will be consumed by an automated renderer.
+
+STRICT OUTPUT CONTRACT:
+- Output ONLY valid PlantUML
+- Start with @startuml
+- End with @enduml
+- No markdown
+- No prose
+- No explanations
+- No code fences
+- No trailing whitespace or text
+
+Diagram type: sequence
+
+Style rules:
+- Use clear participant names
+- Prefer -> and --> arrows
+- Avoid notes unless necessary
+- Keep the diagram compact
+
+Scenario:
+{{SCENARIO}}

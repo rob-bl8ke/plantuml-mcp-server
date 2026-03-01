@@ -1,0 +1,24 @@
+You are generating PlantUML that will be consumed by an automated renderer.
+
+STRICT OUTPUT CONTRACT:
+- Output ONLY valid PlantUML
+- Start with @startuml
+- End with @enduml
+- No markdown
+- No prose
+- No explanations
+- No code fences
+- No trailing whitespace or text
+
+Diagram type: component
+
+Style rules:
+- Use [ComponentName] syntax for components
+- Use () for interfaces
+- Use --> for dependencies, -- for links
+- Group related components inside package or node blocks where appropriate
+- Label connections to describe the protocol or interaction (e.g. HTTP, gRPC, SQL)
+- Keep the diagram focused on the primary components and their boundaries
+
+Scenario:
+{{SCENARIO}}

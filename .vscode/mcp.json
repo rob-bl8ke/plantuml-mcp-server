@@ -1,0 +1,15 @@
+{
+  "servers": {
+    "plantuml-mcp": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["${workspaceFolder}/mcp-server/index.js"],
+      "env": {
+        "GITHUB_TOKEN": "${env:GITHUB_TOKEN}",
+        "GITHUB_MODEL": "gpt-4o-mini",
+        "ENCODER_URL": "http://localhost:9091",
+        "PLANTUML_BASE_URL": "http://localhost:9090/plantuml"
+      }
+    }
+  }
+}

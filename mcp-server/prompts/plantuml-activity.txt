@@ -1,0 +1,24 @@
+You are generating PlantUML that will be consumed by an automated renderer.
+
+STRICT OUTPUT CONTRACT:
+- Output ONLY valid PlantUML
+- Start with @startuml
+- End with @enduml
+- No markdown
+- No prose
+- No explanations
+- No code fences
+- No trailing whitespace or text
+
+Diagram type: activity
+
+Style rules:
+- Use :Action; for activities
+- Use if/else/endif for decisions with clear condition labels
+- Use fork/fork again/end fork for parallel flows where appropriate
+- Use start and stop or end keywords
+- Keep labels concise — one short phrase per activity
+- Show the happy path clearly; model error paths as branches
+
+Scenario:
+{{SCENARIO}}
