@@ -32,3 +32,28 @@ services:
       interval: 10s
       timeout: 5s
       retries: 3
+
+  # MCP server — exposes SSE endpoint for VS Code Copilot Chat
+  mcp-server:
+    build:
+      context: ../mcp-server
+      dockerfile: Dockerfile
+    container_name: plantuml-mcp
+    ports:
+      - "3002:3002"
+    environment:
+      - PORT=3002
+      # Internal Docker network — calls encoder container directly
+      - ENCODER_URL=http://encoder:3000
+      # Public URL embedded in returned diagram links
+      - PLANTUML_BASE_URL=http://localhost:9090/plantuml
+      # Supplied via .env file (see .env.example) — never commit the real value
+      - GITHUB_TOKEN=${GITHUB_TOKEN}
+      - GITHUB_MODEL=${GITHUB_MODEL:-gpt-4o-mini}
+    depends_on:
+      - encoder
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3002/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3

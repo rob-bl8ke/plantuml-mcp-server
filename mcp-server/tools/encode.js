@@ -7,7 +7,9 @@
  * The Docker service must be running (docker compose up -d in docker-service/).
  */
 
-const ENCODER_URL = process.env.ENCODER_URL || 'http://localhost:9091';
+// Defaults to the internal Docker service name when running inside docker-compose,
+// falls back to localhost for local development without Docker.
+const ENCODER_URL = process.env.ENCODER_URL || 'http://encoder:3000';
 
 /**
  * Encode a PlantUML diagram and return a Markdown image link.

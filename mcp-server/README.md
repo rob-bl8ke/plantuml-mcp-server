@@ -6,17 +6,17 @@ An MCP (Model Context Protocol) server that lets any compatible AI assistant gen
 
 ## How It Works
 
-The server exposes two tools. The AI assistant calls them automatically based on your request — you never write PlantUML manually.
+The server exposes two tools via a **Streamable HTTP endpoint**, running inside the Docker Compose stack alongside the PlantUML rendering and encoding services. VS Code connects to it via a URL — no local Node.js installation required.
 
 ```
 Your spec (plain English)
         │
         ▼
-  spec_to_diagrams tool
+  spec_to_diagrams tool  (running in Docker on port 3002)
         │
         ├─ Renders prompt template (sequence / class / component / activity)
         ├─ Calls GitHub Models API → generates PlantUML source
-        └─ POSTs to Docker encoder → returns Markdown image link
+        └─ POSTs to encoder container (http://encoder:3000) → Markdown image link
 ```
 
 ---
@@ -25,51 +25,78 @@ Your spec (plain English)
 
 | Requirement | Notes |
 |---|---|
-| Node.js 18+ | Required for built-in `fetch` and ESM |
-| Docker Desktop | Runs the PlantUML rendering + encoding services |
-| GitHub account with Copilot | Provides the `GITHUB_TOKEN` for the Models API |
+| Docker Desktop | Runs all three services in a single stack |
+| GitHub Personal Access Token | Required for `spec_to_diagrams` — calls the GitHub Models API |
+
+No local Node.js installation is needed — everything runs inside Docker.
 
 ---
 
 ## Setup
 
-### 1. Start the Docker services
+### 1. Create your `.env` file
 
 ```powershell
-cd docker-service
-docker compose up -d
+# PowerShell
+Copy-Item docker-service\.env.example docker-service\.env
+```
+```bash
+# Bash
+cp docker-service/.env.example docker-service/.env
 ```
 
-Confirm both containers are healthy:
+Open `docker-service/.env` and replace the placeholder with your real GitHub token:
+
+```
+GITHUB_TOKEN=ghp_xxxxxxxxxxxxxxxxxxxx
+```
+
+To create a token: go to [https://github.com/settings/tokens](https://github.com/settings/tokens) → **Generate new token (classic)** → no scopes needed → copy the token.
+
+> `.env` is gitignored and will never be committed.
+
+### 2. Start the full Docker stack
 
 ```powershell
+# PowerShell
+cd docker-service
+docker compose up -d --build
+```
+```bash
+# Bash
+cd docker-service
+docker compose up -d --build
+```
+
+Confirm all three containers are healthy:
+
+```powershell
+# PowerShell
+Invoke-RestMethod http://localhost:3002/health
 Invoke-RestMethod http://localhost:9091/health
 ```
-
-### 2. Install MCP server dependencies
-
-```powershell
-cd mcp-server
-npm install
+```bash
+# Bash
+curl http://localhost:3002/health
+curl http://localhost:9091/health
 ```
 
-### 3. Set your GitHub token
+### 3. Register with VS Code
 
-The `spec_to_diagrams` tool calls the [GitHub Models API](https://docs.github.com/en/github-models) to generate PlantUML. This requires a token with `models:read` access (a standard GitHub PAT or your Copilot token works).
+The `.vscode/mcp.json` in this workspace already points to the running server:
 
-```powershell
-# PowerShell — set for the current session
-$env:GITHUB_TOKEN = "github_pat_..."
-
-# Or add it to your user profile to persist it
-[System.Environment]::SetEnvironmentVariable("GITHUB_TOKEN", "github_pat_...", "User")
+```json
+{
+  "servers": {
+    "plantuml-mcp": {
+      "type": "sse",
+      "url": "http://localhost:3002/sse"
+    }
+  }
+}
 ```
 
-> **Note:** The `.vscode/mcp.json` config passes `${env:GITHUB_TOKEN}` automatically — VS Code reads it from your environment at server start.
-
-### 4. Register with VS Code
-
-The `.vscode/mcp.json` file in this workspace already registers the server. Reload VS Code (or run **Developer: Reload Window**) and the tools will appear in Copilot Chat.
+Run **Developer: Reload Window** in VS Code — the MCP server connects automatically.
 
 To verify, open Copilot Chat and type `#` — you should see `encode_plantuml` and `spec_to_diagrams` listed.
 
@@ -116,12 +143,15 @@ Generate one or more diagrams from a plain-English specification.
 
 ## Environment Variables
 
+All variables are set via `docker-service/.env` (gitignored). See `docker-service/.env.example` for the template.
+
 | Variable | Required | Default | Description |
 |---|---|---|---|
-| `GITHUB_TOKEN` | Yes (for `spec_to_diagrams`) | — | GitHub PAT with `models:read` |
+| `GITHUB_TOKEN` | Yes (for `spec_to_diagrams`) | — | GitHub PAT — set in `docker-service/.env` |
 | `GITHUB_MODEL` | No | `gpt-4o-mini` | GitHub Models model name |
-| `ENCODER_URL` | No | `http://localhost:9091` | Docker encoder service base URL |
-| `PLANTUML_BASE_URL` | No | `http://localhost:9090/plantuml` | Public PlantUML server base URL |
+| `ENCODER_URL` | No | `http://encoder:3000` | Encoder service URL (internal Docker network) |
+| `PLANTUML_BASE_URL` | No | `http://localhost:9090/plantuml` | Public PlantUML server URL embedded in returned links |
+| `PORT` | No | `3002` | Port the MCP server listens on |
 
 ---
 

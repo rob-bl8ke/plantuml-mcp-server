@@ -40,6 +40,9 @@ const DIAGRAM_PROMPTS = {
   activity:  'plantuml-activity.txt',
 };
 
+/** Timeout in milliseconds for GitHub Models API calls */
+const LLM_TIMEOUT_MS = 30_000;
+
 /**
  * Call the GitHub Models API (OpenAI-compatible) to generate PlantUML.
  *
@@ -51,18 +54,34 @@ async function callLlm(prompt) {
     throw new Error('GITHUB_TOKEN environment variable is required for spec_to_diagrams.');
   }
 
-  const response = await fetch('https://models.inference.ai.azure.com/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${GITHUB_TOKEN}`,
-    },
-    body: JSON.stringify({
-      model: GITHUB_MODEL,
-      messages: [{ role: 'user', content: prompt }],
-      temperature: 0.2, // Low temperature: we want deterministic, spec-compliant output
-    }),
-  });
+  console.log(`[spec-to-diagrams] Calling GitHub Models API (model: ${GITHUB_MODEL})...`);
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), LLM_TIMEOUT_MS);
+
+  let response;
+  try {
+    response = await fetch('https://models.inference.ai.azure.com/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${GITHUB_TOKEN}`,
+      },
+      body: JSON.stringify({
+        model: GITHUB_MODEL,
+        messages: [{ role: 'user', content: prompt }],
+        temperature: 0.2, // Low temperature: we want deterministic, spec-compliant output
+      }),
+      signal: controller.signal,
+    });
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      throw new Error(`GitHub Models API timed out after ${LLM_TIMEOUT_MS / 1000}s. Check network connectivity from the container.`);
+    }
+    throw new Error(`GitHub Models API request failed: ${err.message}`);
+  } finally {
+    clearTimeout(timeout);
+  }
 
   if (!response.ok) {
     const body = await response.text();
@@ -70,6 +89,7 @@ async function callLlm(prompt) {
   }
 
   const data = await response.json();
+  console.log(`[spec-to-diagrams] GitHub Models API responded successfully.`);
   return data.choices[0].message.content;
 }
 

@@ -1,26 +1,30 @@
 
 # PlantUML Docker Service (How-To)
 
-This folder contains two containers:
+This folder contains three containers:
 
 - **PlantUML Server** (renders diagrams): exposed on `http://localhost:9090/plantuml`
 - **Encoder Service** (turns PlantUML text into an encoded URL): exposed on `http://localhost:9091`
+- **MCP Server** (Streamable HTTP endpoint for Copilot Chat): exposed on `http://localhost:3002`
 
 The workflow is:
 
 1. POST your PlantUML script to the encoder (`/encode`).
 2. Use the returned `urls.svg` value as a browser URL (it will render an SVG).
+3. (Optional) Use the MCP server from Copilot Chat to generate diagrams from a plain-English spec.
 
 ## Endpoints
 
 - Encoder health: `GET http://localhost:9091/health`
+- MCP server health: `GET http://localhost:3002/health`
+- MCP endpoint: `POST/GET http://localhost:3002/sse` (Streamable HTTP — used by VS Code)
 - Encode (recommended): `POST http://localhost:9091/encode` with `Content-Type: text/plain`
 	- Body: raw PlantUML text (`@startuml ... @enduml`)
 	- Response JSON includes `encoded` and `urls.svg` / `urls.png` / `urls.txt`
 - PlantUML render URL format:
 	- `http://localhost:9090/plantuml/svg/<encoded>`
 
-If you changed ports in Compose, replace `9090`/`9091` accordingly.
+If you changed ports in Compose, replace `9090`/`9091`/`3002` accordingly.
 
 ## Start / Stop (Docker Compose)
 
